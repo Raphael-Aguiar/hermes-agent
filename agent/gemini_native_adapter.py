@@ -414,6 +414,21 @@ def build_gemini_request(
     thinking_config: Any = None,
 ) -> Dict[str, Any]:
     contents, system_instruction = _build_gemini_contents(messages)
+    # PATCH gemini-empty-contents-guard: generateContent rejeita `contents`
+    # vazio com HTTP 400 (INVALID_ARGUMENT: "contents is not specified"), erro
+    # nao-retryable que vira o "model provider failed after retries" ao usuario.
+    # `contents` pode ficar vazio quando as mensagens sao so de sistema ou
+    # perdem todas as partes (download de midia falho, revisao de background
+    # so-system, etc.). Injeta um turno de usuario minimo para a requisicao ser
+    # sempre valida — defesa em profundidade contra o 400, qualquer que seja a
+    # origem do contents-vazio.
+    if not contents:
+        logger.warning(
+            "Gemini request had empty contents (messages were system-only or "
+            "produced no parts); injecting a minimal user turn to avoid a 400 "
+            "'contents is not specified'."
+        )
+        contents = [{"role": "user", "parts": [{"text": "."}]}]
     request: Dict[str, Any] = {"contents": contents}
     if system_instruction:
         request["systemInstruction"] = system_instruction
