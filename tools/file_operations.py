@@ -981,6 +981,13 @@ class ShellFileOperations(FileOperations):
             'if [ -e "$t" ]; then '
             'm="$(stat -c%a "$t" 2>/dev/null || stat -f%Lp "$t" 2>/dev/null || true)"; '
             '[ -n "$m" ] && chmod "$m" "$tmp" 2>/dev/null || true; '
+            # PATCH vault-readable-write (Raphael 2026-06-26): arquivo NOVO nasce
+            # legivel (mktemp forca 0600 e ignora a umask; so herda modo se o alvo
+            # ja existe). Sem isto, paginas novas ficam invisiveis ao MCP PKM
+            # read-only (le como uid 'mcp', via bits de 'other').
+            'else '
+            'um="$(umask 2>/dev/null || echo 022)"; '
+            'chmod "$(printf "%o" "$(( 0666 & ~0$um ))" 2>/dev/null || echo 644)" "$tmp" 2>/dev/null || true; '
             "fi; "
             'cat > "$tmp"; '
             'mv -f "$tmp" "$t"; '
