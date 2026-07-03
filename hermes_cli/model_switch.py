@@ -2133,9 +2133,24 @@ def list_picker_providers(
         current_model=current_model,
     )
 
+    # --- PATCH picker-hidden-providers (Raphael 2026-06-23) ---
+    # Esconde providers do /model picker via config model.picker_hidden_providers.
+    # So estreita o picker; /model <nome> digitado e runtime ficam intactos.
+    # Reaplicar apos hermes update: ~/.hermes/patches/apply-picker-filter.py
+    try:
+        from hermes_cli.config import load_config as _load_cfg_hidden
+        _PICKER_HIDDEN_PROVIDERS = {
+            str(_x).strip().lower()
+            for _x in (_load_cfg_hidden().get('model', {}).get('picker_hidden_providers') or [])
+        }
+    except Exception:
+        _PICKER_HIDDEN_PROVIDERS = set()
+    # --- END PATCH ---
     filtered: List[dict] = []
     for p in providers:
         slug = str(p.get("slug", "")).lower()
+        if slug in _PICKER_HIDDEN_PROVIDERS:  # PATCH picker-hidden-providers
+            continue
         if slug == "openrouter":
             try:
                 live = fetch_openrouter_models()
