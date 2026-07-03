@@ -6623,6 +6623,25 @@ class TelegramAdapter(BasePlatformAdapter):
             except Exception as e:
                 logger.warning("[Telegram] Failed to cache document: %s", e, exc_info=True)
 
+        # PATCH media-download-guard: se a mensagem tinha midia mas TODO download
+        # falhou (excecoes engolidas acima), o event chega aqui sem texto e sem
+        # media em cache. Encaminha-lo monta um prompt VAZIO -> provider 400
+        # "contents is not specified" -> "model provider failed after retries".
+        # Em vez disso, damos ao agente uma nota clara para pedir reenvio.
+        if not (event.text and event.text.strip()) and not getattr(event, "media_urls", None):
+            logger.warning(
+                "[Telegram] Media message produced no text and no cached media "
+                "(download likely failed) — substituting a resend note instead of "
+                "forwarding an empty prompt."
+            )
+            event.text = (
+                "[Sistema: o anexo que o usuario enviou (voz/audio/imagem/video/"
+                "documento) nao pode ser baixado do Telegram, provavelmente por "
+                "instabilidade de rede momentanea. Avise o usuario, em portugues "
+                "brasileiro, que o anexo nao chegou e peca gentilmente para "
+                "reenviar.]"
+            )
+
         media_group_id = getattr(msg, "media_group_id", None)
         if media_group_id:
             await self._queue_media_group_event(str(media_group_id), event)
