@@ -677,6 +677,19 @@ def translate_stream_event(event: Dict[str, Any], model: str, tool_call_indices:
                 sort_keys=True,
             )
             slot = tool_call_indices.get(call_key)
+            # PATCH gemini-parallel-toolcall-fix: chamadas paralelas distintas
+            # a mesma ferramenta colidem na mesma call_key (part_index=0 em
+            # eventos SSE separados). Se o slot ja tem argumentos completos e
+            # o novo args_str nao e igual nem extensao deles, e uma chamada
+            # NOVA -> caminhar a cadeia "#next" ate achar slot compativel ou
+            # vazio, evitando concatenar dois JSONs no mesmo tool call.
+            while slot is not None:
+                _prev_args = str(slot.get("last_arguments") or "")
+                if _prev_args and args_str != _prev_args and not args_str.startswith(_prev_args):
+                    call_key += "#next"
+                    slot = tool_call_indices.get(call_key)
+                else:
+                    break
             if slot is None:
                 slot = {
                     "index": len(tool_call_indices),
