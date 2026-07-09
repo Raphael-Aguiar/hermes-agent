@@ -163,8 +163,16 @@ _MEMORY_REVIEW_PROMPT = (
     "preferences, or personal details worth remembering?\n"
     "2. Has the user expressed expectations about how you should behave, their work "
     "style, or ways they want you to operate?\n\n"
-    "If something stands out, save it using the memory tool. "
-    "If nothing is worth saving, just say 'Nothing to save.' and stop."
+    "Keep MEMORY.md lean — it is a small fixed budget injected into every turn. "
+    "Before adding, look at the current fill the memory tool reports. If memory is "
+    "near or over its limit, CONSOLIDATE in the SAME batch instead of only appending: "
+    "merge overlapping entries, shorten verbose ones, and drop stale or "
+    "project-specific/high-volume details — those belong in the user's vault (~/PKM/), "
+    "which you reach by delegating to Claude Code, not in always-on memory. Prefer "
+    "shortening over deleting, and NEVER drop safety or inviolable rules.\n\n"
+    "If something stands out, save it using the memory tool (batching any needed "
+    "consolidation together). If nothing is worth saving and memory has ample room, "
+    "just say 'Nothing to save.' and stop."
 )
 
 _SKILL_REVIEW_PROMPT = (
