@@ -16375,6 +16375,17 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
                                             pending_text, _audio_paths,
                                         )
                                         pending_text = _enriched
+                                        # PATCH stt-dedup: memoiza a transcricao no
+                                        # proprio evento (mesmo objeto de
+                                        # _pending_messages) para o caminho de
+                                        # drenagem pos-run reaproveitar, sem
+                                        # re-chamar o Gemini nem re-ecoar a voz.
+                                        try:
+                                            _peek_event._hermes_stt_enriched = _enriched
+                                            _peek_event._hermes_stt_transcripts = _transcripts
+                                            _peek_event._hermes_stt_echoed = bool(_transcripts)
+                                        except Exception:
+                                            pass
                                         if _transcripts:
                                             _echo_meta = {"thread_id": source.thread_id} if source.thread_id else None
                                             for _tx in _transcripts:
@@ -16751,7 +16762,14 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
                         )
                         if _is_audio:
                             _audio_paths.append(_path)
-                    if _audio_paths:
+                    _cached_enriched = getattr(pending_event, "_hermes_stt_enriched", None)
+                    if _cached_enriched is not None:
+                        # PATCH stt-dedup: transcricao ja feita e ecoada no
+                        # caminho de interrupcao (mesmo objeto MessageEvent de
+                        # _pending_messages). Reaproveita sem re-chamar o Gemini
+                        # nem re-ecoar a voz.
+                        pending = _cached_enriched or None
+                    elif _audio_paths:
                         try:
                             _enriched, _transcripts = await self._enrich_message_with_transcription(
                                 _pending_text, _audio_paths,
