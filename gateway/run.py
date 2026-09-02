@@ -927,27 +927,51 @@ def _format_exec_approval_fallback(
     )
 
 def _gateway_provider_error_reply(text: str) -> str:
-    """Map raw provider/API errors to a short user-safe Telegram reply."""
+    """Map raw provider/API errors to a short user-safe Telegram reply.
+
+    PATCH friendly-errors (Raphael 2026-07-03; readaptado 2026-09-02 sobre o
+    ramo de conexao que o upstream acrescentou em 5cfa2b2f0f): mensagens em
+    portugues no template fixo — (1) o que houve, (2) transitorio ou
+    persistente, (3) o que o usuario deve fazer.
+    """
     if _GATEWAY_AUTH_ERROR_RE.search(text):
         return (
-            "⚠️ Provider authentication failed. Check the configured credentials; "
-            "raw provider details are in the gateway logs."
+            "⚠️ Falha de autenticação com o provedor do modelo (credencial "
+            "recusada). NÃO é transitório — reenviar não resolve. É preciso "
+            "verificar as chaves no servidor; detalhes nos logs do gateway."
         )
     if _GATEWAY_PROVIDER_POLICY_RE.search(text):
         return (
-            "⚠️ The model provider rejected the request. I kept the raw provider "
-            "error out of chat; check gateway logs for details or try rephrasing."
+            "⚠️ O provedor do modelo recusou a requisição (política de "
+            "conteúdo). NÃO é transitório para a mesma mensagem — reformule "
+            "o pedido com outras palavras e reenvie."
         )
     if _GATEWAY_RATE_LIMIT_RE.search(text):
-        return "⏱️ The model provider is rate-limiting requests. Please wait a moment and try again."
+        return (
+            "⏱️ O provedor do modelo está limitando requisições (cota "
+            "momentânea). Transitório — aguarde 1 a 2 minutos e reenvie a "
+            "última mensagem."
+        )
     if _GATEWAY_CONNECTION_ERROR_RE.search(text):
         return (
-            "⚠️ The model server is not responding — it looks like the configured "
-            "model endpoint is not running or is unreachable."
+            "⚠️ O servidor do modelo não respondeu — o endpoint configurado "
+            "parece estar fora do ar ou inacessível. NÃO é transitório por si "
+            "só: é preciso checar se o serviço do modelo está de pé no "
+            "servidor. Reenvie só depois disso."
+        )
+    if "response truncated" in text.lower() or "truncated due to output" in text.lower():
+        return (
+            "⚠️ Minha resposta foi interrompida no meio e eu desfiz o turno "
+            "para não corromper a conversa. Normalmente transitório — reenvie "
+            "a última mensagem (se era um pedido grande, divida em partes "
+            "menores). Se acontecer 3 vezes seguidas, me avise: é caso de "
+            "diagnóstico."
         )
     return (
-        "⚠️ The model provider failed after retries. I kept raw provider details "
-        "out of chat; check gateway logs for diagnostics."
+        "⚠️ O provedor do modelo falhou mesmo após novas tentativas. "
+        "Normalmente transitório — aguarde um instante e reenvie a última "
+        "mensagem. Se falhar 3 vezes seguidas, é caso de diagnóstico (logs "
+        "do gateway)."
     )
 
 
@@ -961,6 +985,7 @@ _GATEWAY_PROVIDER_ERROR_SHAPE_RE = re.compile(
     r"|http\s*\d{3}\b"
     r"|incorrect\s+api\s+key"
     r"|invalid\s+api\s+key"
+    r"|response\s+truncated"  # PATCH friendly-errors: truncamento entra no funil
     r"|(?:\w+\.)?(?:api\s*)?connection\s*(?:error|timeout)"
     r"|(?:\w+\.)?connect\s*(?:error|timeout)"
     r"|connection\s+refused"
